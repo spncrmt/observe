@@ -204,17 +204,29 @@ class SystemMonitor:
             metrics_file = "data/real_metrics.csv"
             os.makedirs("data", exist_ok=True)
             
+            # Check if file exists and has headers
+            file_exists = os.path.exists(metrics_file) and os.path.getsize(metrics_file) > 0
+            
             # Convert to CSV format
             csv_line = f"{metrics['timestamp']},{metrics['cpu_usage']},{metrics['memory_usage']},{metrics.get('latency_ms', 0)}\n"
             
             with open(metrics_file, "a") as f:
+                # Write headers if file is new
+                if not file_exists:
+                    f.write("timestamp,cpu_usage,memory_usage,latency_ms\n")
                 f.write(csv_line)
             
             # Save logs
             logs_file = "data/real_logs.csv"
             for log in logs:
+                # Check if logs file exists and has headers
+                logs_file_exists = os.path.exists(logs_file) and os.path.getsize(logs_file) > 0
+                
                 csv_line = f"{log['timestamp']},{log['level']},{log['message']}\n"
                 with open(logs_file, "a") as f:
+                    # Write headers if file is new
+                    if not logs_file_exists:
+                        f.write("timestamp,level,message\n")
                     f.write(csv_line)
             
             logger.info("Saved metrics and logs locally")

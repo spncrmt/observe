@@ -138,19 +138,27 @@ def get_live_metrics() -> Tuple[pd.DataFrame, pd.DataFrame]:
     try:
         # Read real metrics if available
         if os.path.exists(REAL_METRICS_FILE) and os.path.getsize(REAL_METRICS_FILE) > 0:
-            metrics_df = pd.read_csv(REAL_METRICS_FILE, parse_dates=["timestamp"])
-            # Get only recent data (last 2 hours)
-            cutoff_time = datetime.now() - timedelta(hours=2)
-            metrics_df = metrics_df[metrics_df['timestamp'] >= cutoff_time]
+            try:
+                metrics_df = pd.read_csv(REAL_METRICS_FILE, parse_dates=["timestamp"])
+                # Get only recent data (last 2 hours)
+                cutoff_time = datetime.now() - timedelta(hours=2)
+                metrics_df = metrics_df[metrics_df['timestamp'] >= cutoff_time]
+            except Exception as e:
+                st.warning(f"Error reading metrics file: {e}")
+                metrics_df = pd.DataFrame()
         else:
             metrics_df = pd.DataFrame()
         
         # Read real logs if available
         if os.path.exists(REAL_LOGS_FILE) and os.path.getsize(REAL_LOGS_FILE) > 0:
-            logs_df = pd.read_csv(REAL_LOGS_FILE, parse_dates=["timestamp"])
-            # Get only recent logs (last 2 hours)
-            cutoff_time = datetime.now() - timedelta(hours=2)
-            logs_df = logs_df[logs_df['timestamp'] >= cutoff_time]
+            try:
+                logs_df = pd.read_csv(REAL_LOGS_FILE, parse_dates=["timestamp"])
+                # Get only recent logs (last 2 hours)
+                cutoff_time = datetime.now() - timedelta(hours=2)
+                logs_df = logs_df[logs_df['timestamp'] >= cutoff_time]
+            except Exception as e:
+                st.warning(f"Error reading logs file: {e}")
+                logs_df = pd.DataFrame()
         else:
             logs_df = pd.DataFrame()
         
@@ -312,21 +320,26 @@ def main():
 
     # Auto-refresh for real-time data
     if st.session_state.monitoring_active:
-        # Refresh every 10 seconds when monitoring is active
-        if time.time() - st.session_state.last_refresh > 10:
+        # Refresh every 30 seconds when monitoring is active (reduced frequency to prevent JS issues)
+        if time.time() - st.session_state.last_refresh > 30:
             st.session_state.last_refresh = time.time()
             st.rerun()
 
     # Load data (real-time if monitoring, otherwise historical)
-    if st.session_state.monitoring_active:
-        metrics_df, logs_df = get_live_metrics()
-        data_source = "🔄 Live Data"
-    else:
-        metrics_df, logs_df = load_data()
-        data_source = "📊 Historical Data"
+    try:
+        if st.session_state.monitoring_active:
+            metrics_df, logs_df = get_live_metrics()
+            data_source = "🔄 Live Data"
+        else:
+            metrics_df, logs_df = load_data()
+            data_source = "📊 Historical Data"
 
-    # Display data source indicator
-    st.info(f"{data_source} - {'Monitoring Active' if st.session_state.monitoring_active else 'Historical View'}")
+        # Display data source indicator
+        st.info(f"{data_source} - {'Monitoring Active' if st.session_state.monitoring_active else 'Historical View'}")
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        metrics_df, logs_df = pd.DataFrame(), pd.DataFrame()
+        st.info("Using fallback data")
 
     # Detect anomalies for CPU usage using enhanced detection model
     if not metrics_df.empty:
@@ -368,10 +381,24 @@ def main():
 
     # Show log table
     with st.expander("View Logs"):
-        if not logs_df.empty:
-            st.dataframe(logs_df.tail(100))
-        else:
-            st.info("No logs available. Start monitoring to see live logs.")
+        try:
+            if not logs_df.empty:
+                # Convert to string representation to avoid JavaScript issues
+                logs_display = logs_df.tail(100).copy()
+                # Ensure timestamp is properly formatted
+                if 'timestamp' in logs_display.columns:
+                    logs_display['timestamp'] = logs_display['timestamp'].astype(str)
+                
+                st.dataframe(
+                    logs_display,
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.info("No logs available. Start monitoring to see live logs.")
+        except Exception as e:
+            st.error(f"Error displaying logs: {e}")
+            st.info("Try refreshing the page or restarting monitoring.")
 
     # System Status Dashboard
     if st.session_state.monitoring_active and not metrics_df.empty:
