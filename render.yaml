@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: observe
+    env: python
+    repo: https://github.com/spncrmt/observe
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port=$PORT --server.enableCORS false
+    plan: free
+    autoDeploy: true
