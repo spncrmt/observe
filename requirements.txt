@@ -3,3 +3,6 @@ pandas>=2.2
 numpy>=1.24
 plotly>=5.18
 openai>=1.0
+psutil>=5.9
+requests>=2.31
+flask>=2.3
