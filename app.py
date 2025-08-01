@@ -44,8 +44,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# Enable session state persistence
+st.set_page_config(
+    page_title="Observe AI Dashboard", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 from utils.auth import UserAuth
 from utils.ai_assistant import detect_anomalies, root_cause_analysis, ai_answer
+from utils.session_manager import SessionManager
 from scripts.generate_data import generate_data
 
 
@@ -212,20 +220,30 @@ def create_real_time_chart(metrics_df: pd.DataFrame, metric_choice: str):
 
 
 def main():
-    st.set_page_config(page_title="Observe AI Dashboard", layout="wide")
     st.title("Observe AI Dashboard")
 
     # Initialize authentication system and ensure default user
     auth = UserAuth()
     auth.ensure_default_user()
+    
+    # Initialize session manager for persistent login
+    session_manager = SessionManager()
 
-    # Initialize session state variables
-    st.session_state.setdefault("logged_in", False)
-    st.session_state.setdefault("username", "")
-    st.session_state.setdefault("api_key", "")
-    st.session_state.setdefault("monitoring_active", False)
-    st.session_state.setdefault("monitoring_process", None)
-    st.session_state.setdefault("last_refresh", time.time())
+    # Initialize session state variables with persistence
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = session_manager.is_logged_in()
+    if "username" not in st.session_state:
+        st.session_state.username = session_manager.get_username()
+    if "api_key" not in st.session_state:
+        st.session_state.api_key = ""
+    if "monitoring_active" not in st.session_state:
+        st.session_state.monitoring_active = False
+    if "monitoring_process" not in st.session_state:
+        st.session_state.monitoring_process = None
+    if "last_refresh" not in st.session_state:
+        st.session_state.last_refresh = time.time()
+    if "monitoring_interval" not in st.session_state:
+        st.session_state.monitoring_interval = 60
 
     # Login/Registration interface
     if not st.session_state.logged_in:
@@ -238,7 +256,9 @@ def main():
                 if auth.authenticate(username, password):
                     st.session_state.logged_in = True
                     st.session_state.username = username
+                    session_manager.login(username)  # Save to persistent storage
                     st.sidebar.success(f"Logged in as {username}")
+                    st.rerun()
                 else:
                     st.sidebar.error("Invalid username or password.")
         else:
@@ -262,6 +282,7 @@ def main():
     if st.sidebar.button("Logout"):
         st.session_state.logged_in = False
         st.session_state.username = ""
+        session_manager.logout()  # Clear persistent storage
         st.rerun()
 
     # Real-time Monitoring Controls
@@ -287,6 +308,7 @@ def main():
             if process:
                 st.session_state.monitoring_active = True
                 st.session_state.monitoring_process = process
+                st.session_state.monitoring_interval = interval
                 st.success(f"Monitoring started! Collecting data every {interval} seconds.")
                 st.rerun()
             else:
@@ -438,7 +460,7 @@ def main():
                 st.metric(
                     "Monitoring Time", 
                     f"{len(metrics_df)} samples",
-                    delta=f"Every {interval}s"
+                    delta=f"Every {st.session_state.monitoring_interval}s"
                 )
 
     # Natural language query input
