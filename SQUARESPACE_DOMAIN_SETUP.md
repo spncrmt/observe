@@ -40,22 +40,45 @@ After deployment, note your service URLs:
 3. Click on `awtospx.com`
 4. Click **DNS Settings**
 
-### 2.2 Add DNS Records
+### 2.2 Get Render IP Addresses
+**Important**: You need to get the IP addresses from Render support or use a DNS lookup tool.
+
+**Option A: Contact Render Support**
+1. After deploying to Render, contact Render support
+2. Ask for the IP addresses for your custom domains
+3. They will provide you with the specific IP addresses
+
+**Option B: Use DNS Lookup (Temporary)**
+```bash
+# Look up the IP addresses for Render services
+nslookup grafana-monitoring.onrender.com
+nslookup ai-service.onrender.com
+nslookup prometheus.onrender.com
+```
+
+**Option C: Use Render's IP Range**
+Render typically uses these IP ranges:
+- `76.76.19.0/24` (76.76.19.x)
+- `76.76.20.0/24` (76.76.20.x)
+
+### 2.3 Add DNS Records
 Add these records in your Squarespace DNS settings:
 
 | Type | Name | Value | TTL |
 |------|------|-------|-----|
-| CNAME | @ | grafana-monitoring.onrender.com | 300 |
-| CNAME | www | grafana-monitoring.onrender.com | 300 |
+| A | @ | RENDER_IP_ADDRESS | 300 |
+| A | www | RENDER_IP_ADDRESS | 300 |
 | CNAME | api | ai-service.onrender.com | 300 |
 | CNAME | prometheus | prometheus.onrender.com | 300 |
 
-**Note**: If Squarespace doesn't allow CNAME for root domain (@), use these A records instead:
-- Type: A, Name: @, Value: [Get from Render support]
-- Type: A, Name: www, Value: [Get from Render support]
+**Example with placeholder IP:**
+- Type: A, Name: @, Value: 76.76.19.123
+- Type: A, Name: www, Value: 76.76.19.123
+- Type: CNAME, Name: api, Value: ai-service.onrender.com
+- Type: CNAME, Name: prometheus, Value: prometheus.onrender.com
 
-### 2.3 Alternative: Use Squarespace Domain Forwarding
-If CNAME/A records don't work:
+### 2.4 Alternative: Use Squarespace Domain Forwarding
+If you can't get the exact IP addresses:
 1. In Squarespace DNS, set up **Domain Forwarding**
 2. Forward `awtospx.com` to `https://grafana-monitoring.onrender.com`
 3. Enable **301 Redirect** and **SSL**
@@ -119,8 +142,9 @@ Once DNS has propagated:
 **Problem**: Domain doesn't resolve to Render
 **Solutions**:
 1. Check DNS propagation with online tools
-2. Verify CNAME/A records in Squarespace
-3. Contact Squarespace support if needed
+2. Verify A records in Squarespace (must use IP addresses for @ and www)
+3. Contact Render support for correct IP addresses
+4. Contact Squarespace support if needed
 
 ### SSL Issues
 **Problem**: SSL certificate not working
@@ -169,7 +193,7 @@ Update environment variables in Render dashboard:
 ## ✅ Success Checklist
 
 - [ ] Services deployed to Render successfully
-- [ ] DNS records configured in Squarespace
+- [ ] DNS A records configured in Squarespace (using IP addresses)
 - [ ] Custom domain added to Render
 - [ ] SSL certificate provisioned
 - [ ] DNS propagation completed
