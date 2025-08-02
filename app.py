@@ -583,9 +583,6 @@ def main():
                                 delta="Last 24h"
                             )
     
-    else:
-        st.warning("No metrics data available. Start monitoring to see live data.")
-
     # Show log table
     with st.expander("View Logs"):
         try:
@@ -606,8 +603,6 @@ def main():
         except Exception as e:
             st.error(f"Error displaying logs: {e}")
             st.info("Try refreshing the page or restarting monitoring.")
-
-
 
     # Natural language query input
     st.subheader("Ask the AI about your system")
