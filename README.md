@@ -1,87 +1,176 @@
-# Observe AI Dashboard
+# Observe AI - Grafana Monitoring Stack
 
-**Observe AI** is a beginner‑friendly AI‑powered observability dashboard. It
-allows small engineering teams or solo developers to explore system metrics,
-logs, and anomalies while asking questions in plain English. The dashboard
-illustrates how to combine simple data processing, charts, basic machine
-learning, and the OpenAI API to augment observability workflows. The design
-follows principles from Greg Nudelman’s *UX for AI* framework: the AI acts
-as a helpful assistant, makes its reasoning transparent, and allows users to
-provide feedback.
+A production-ready AI-enhanced monitoring solution combining Grafana's powerful visualization capabilities with intelligent AI insights, deployed on Render with custom domain support.
 
-## Features
+## 🚀 Features
 
-- **User authentication** with a simple login and registration system.
-- **API key management** for secure OpenAI API access.
-- **Synthetic telemetry data** generator to simulate CPU usage, memory usage,
-  latency, and logs for seven days.
-- **Interactive charts** using Plotly to visualise metrics and highlight
-  detected anomalies.
-- **Anomaly detection** through rolling z‑scores to spot unusual spikes.
-- **Root cause analysis** correlating anomalies with nearby error logs.
-- **AI assistant** that answers natural language questions about system health
-  and explains its reasoning using the OpenAI API.
-- **Feedback loop** where users can rate AI answers as helpful or not, with
-  feedback stored locally for future improvements.
+### **Grafana Stack:**
+- **Grafana** - Beautiful dashboards and visualizations
+- **Prometheus** - Time-series database for metrics
+- **AI Service** - Intelligent monitoring and analysis
+- **Custom Domain** - Professional domain integration
 
-## Installation
+### **AI-Powered Monitoring:**
+- **Anomaly Detection** - ML-based pattern recognition
+- **Root Cause Analysis** - Intelligent issue diagnosis
+- **Predictive Analytics** - Trend forecasting
+- **Natural Language Queries** - Ask questions about your system
+- **Health Scoring** - Overall system health assessment
 
-1. Clone the repository or copy the `observe_ai` folder into your project.
-2. Install the dependencies:
+## 🏗️ Architecture
 
-```bash
-pip install -r observe_ai/requirements.txt
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Grafana UI    │    │   Prometheus    │    │   AI Service    │
+│   (Port 3000)   │◄──►│   (Port 9090)   │◄──►│   (Port 5000)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Custom Domain  │    │  Time Series    │    │  ML Models      │
+│  awtospx.com    │    │  Database       │    │  (Anomaly      │
+└─────────────────┘    └─────────────────┘    │  Detection)     │
+                                              └─────────────────┘
 ```
 
-3. Run the data generator (optional, the app will generate data on first
-   launch if missing):
+## 🛠️ Quick Start
 
+### 1. Deploy to Render
 ```bash
-python observe_ai/scripts/generate_data.py
+# Clone the repository
+git clone https://github.com/spncrmt/observe.git
+cd observe
+
+# Deploy to Render
+# 1. Go to https://render.com
+# 2. Connect your GitHub repository
+# 3. Render will auto-detect render.yaml
+# 4. Click "Apply" to deploy
 ```
 
-4. Start the Streamlit app:
-
+### 2. Configure Domain
 ```bash
-streamlit run observe_ai/app.py
+# Run the deployment guide
+./deploy-render.sh
 ```
 
-5. Open the URL provided by Streamlit in your browser (typically
-   `http://localhost:8501`).
+### 3. Access Services
+- **Grafana Dashboard**: https://awtospx.com
+- **AI Service API**: https://api.awtospx.com
+- **Prometheus Admin**: https://prometheus.awtospx.com
 
-## Usage
+## 📊 Dashboard Features
 
-1. **Log in** using the default credentials `admin` / `admin` or register
-   a new account via the sidebar.
-2. **Enter your OpenAI API key** in the sidebar to enable AI features. The key is
-   stored only in memory during your session.
-3. **Explore the metrics** by selecting CPU usage, memory usage, or latency from
-   the dropdown. Anomalies detected by the rolling z‑score algorithm are
-   highlighted in red.
-4. **Ask questions** about your system’s health in natural language. The AI
-   assistant will analyse the metrics and logs, then respond with an answer
-   and reasoning.
-5. **Review root cause analysis** results to see which logs correspond to
-   anomalies.
-6. **Provide feedback** by clicking “Helpful” or “Not Helpful” after an AI
-   response. This feedback is stored in a local `feedback.json` file.
+### **Real-time Metrics:**
+- **CPU Usage** - Live CPU utilization with anomaly detection
+- **Memory Usage** - Memory consumption trends
+- **Disk I/O** - Storage performance monitoring
+- **Network Traffic** - Network bandwidth analysis
+- **System Load** - Load average statistics
 
-## Extending the Dashboard
+### **AI Insights Panel:**
+- **Anomaly Detection** - Automatic pattern recognition
+- **Root Cause Analysis** - Intelligent issue diagnosis
+- **Predictive Analytics** - Trend forecasting
+- **Recommendations** - Actionable optimization suggestions
 
-- **Replace synthetic data** with real telemetry: connect to Prometheus,
-  OpenTelemetry, or your own data sources. Update the data loading
-  functions in `app.py` accordingly.
-- **Improve authentication** by integrating a proper identity provider or
-  adding password hashing with bcrypt.
-- **Enhance anomaly detection** with more advanced models (e.g. isolation
-  forests, Prophet) using the Pandas data.
-- **Iterate on prompts** in `ai_assistant.openai_answer` to produce more
-  structured answers and reasoning.
-- **Persist feedback** in a database and use it to fine‑tune your own
-  summarisation model.
+## 🤖 AI Service API
 
-## License
+### **Endpoints:**
 
-This project is provided for educational purposes and does not include
-warranties or guarantees. You are welcome to modify and use it to suit
-your needs.
+#### **Get AI Insights**
+```bash
+curl https://api.awtospx.com/insights
+```
+Returns comprehensive system analysis including health score, anomalies, and recommendations.
+
+#### **Get Anomalies**
+```bash
+curl https://api.awtospx.com/anomalies
+```
+Returns detected anomalies with severity levels and timestamps.
+
+#### **Natural Language Query**
+```bash
+curl -X POST https://api.awtospx.com/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Why is CPU usage high?"}'
+```
+Ask questions about your system in natural language.
+
+## 🔧 Configuration
+
+### **Environment Variables:**
+- `OPENAI_API_KEY` - Your OpenAI API key for AI features
+- `GF_SECURITY_ADMIN_USER` - Grafana admin username
+- `GF_SECURITY_ADMIN_PASSWORD` - Grafana admin password
+
+### **Custom Domain Setup:**
+See `SQUARESPACE_DOMAIN_SETUP.md` for detailed domain configuration.
+
+## 📁 Project Structure
+
+```
+observe_ai/
+├── grafana-stack/           # Grafana monitoring stack
+│   ├── ai-service/         # AI monitoring service
+│   ├── grafana/            # Grafana configuration
+│   ├── prometheus/         # Prometheus configuration
+│   └── docker-compose.yml  # Local development
+├── render.yaml             # Render deployment config
+├── deploy-render.sh        # Deployment script
+└── SQUARESPACE_DOMAIN_SETUP.md  # Domain configuration
+```
+
+## 🚀 Deployment
+
+### **Render Deployment:**
+1. Connect GitHub repository to Render
+2. Render auto-detects `render.yaml`
+3. Deploy with one click
+4. Configure custom domain
+
+### **Local Development:**
+```bash
+cd grafana-stack
+docker-compose up -d
+```
+
+## 📚 Documentation
+
+- **Domain Setup**: `SQUARESPACE_DOMAIN_SETUP.md`
+- **Render IP Guide**: `RENDER_IP_GUIDE.md`
+- **Deployment Guide**: `deploy-render.sh`
+
+## 🎯 Use Cases
+
+- **System Monitoring** - Real-time infrastructure monitoring
+- **Performance Analysis** - AI-powered performance insights
+- **Anomaly Detection** - Automatic issue detection
+- **Capacity Planning** - Predictive resource planning
+- **Root Cause Analysis** - Intelligent problem diagnosis
+
+## 🔒 Security
+
+- **HTTPS/SSL** - Automatic SSL certificates
+- **Authentication** - Grafana user management
+- **Internal Networking** - Services not exposed externally
+- **Secure Headers** - XSS protection and security headers
+
+## 📞 Support
+
+- **Render Support**: [help.render.com](https://help.render.com)
+- **Grafana Docs**: [grafana.com/docs](https://grafana.com/docs)
+- **Prometheus Docs**: [prometheus.io/docs](https://prometheus.io/docs)
+
+## 🎉 Getting Started
+
+1. **Deploy to Render** using the provided configuration
+2. **Configure your domain** following the setup guide
+3. **Access your dashboard** at https://awtospx.com
+4. **Login with admin/admin** and start monitoring!
+
+---
+
+**Built with ❤️ using Grafana, Prometheus, and AI**
