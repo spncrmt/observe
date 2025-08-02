@@ -54,4 +54,16 @@ class SessionManager:
     
     def logout(self) -> None:
         """Log out user."""
-        self.clear_session() 
+        self.clear_session()
+    
+    def save_monitoring_state(self, active: bool, interval: int) -> None:
+        """Save monitoring state."""
+        session = self.load_session()
+        session['monitoring_active'] = active
+        session['monitoring_interval'] = interval
+        self.save_session(session)
+    
+    def get_monitoring_state(self) -> tuple[bool, int]:
+        """Get monitoring state."""
+        session = self.load_session()
+        return session.get('monitoring_active', False), session.get('monitoring_interval', 60) 
