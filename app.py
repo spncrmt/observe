@@ -430,6 +430,10 @@ def main():
     # Detect anomalies for available metrics only
     if not metrics_df.empty:
         analyzed_metrics = {}
+        # Debug: show what metrics are available and selected
+        st.sidebar.info(f"Available columns: {list(metrics_df.columns)}")
+        st.sidebar.info(f"Selected metrics: {st.session_state.selected_metrics}")
+        
         for metric in st.session_state.selected_metrics:
             if metric in metrics_df.columns:
                 try:
@@ -438,6 +442,7 @@ def main():
                     st.warning(f"Could not analyze {metric}: {e}")
                     analyzed_metrics[metric] = metrics_df
             else:
+                st.warning(f"Metric '{metric}' not found in data columns: {list(metrics_df.columns)}")
                 analyzed_metrics[metric] = metrics_df
     else:
         analyzed_metrics = {}
