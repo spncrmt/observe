@@ -1,0 +1,17 @@
+FROM prom/prometheus:latest
+
+# Copy configuration
+COPY prometheus/prometheus.yml /etc/prometheus/prometheus.yml
+
+# Create data directory
+RUN mkdir -p /prometheus
+
+# Set permissions
+RUN chown -R nobody:nobody /prometheus
+
+# Expose port
+EXPOSE 9090
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:9090/-/healthy || exit 1 

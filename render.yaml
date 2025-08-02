@@ -1,10 +1,70 @@
 services:
+  # Grafana Service
   - type: web
-    name: observe
-    env: python
-    repo: https://github.com/spncrmt/observe
-    branch: main
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port=$PORT --server.enableCORS false --server.enableXsrfProtection false
-    plan: free
+    name: grafana-monitoring
+    env: docker
+    region: oregon
+    plan: starter
+    healthCheckPath: /
+    dockerfilePath: ./grafana-stack/Dockerfile.grafana
+    dockerContext: ./grafana-stack
+    envVars:
+      - key: GF_SECURITY_ADMIN_USER
+        value: admin
+      - key: GF_SECURITY_ADMIN_PASSWORD
+        value: admin
+      - key: GF_USERS_ALLOW_SIGN_UP
+        value: false
+      - key: GF_SERVER_ROOT_URL
+        value: https://awtospx.com
+      - key: GF_SERVER_SERVE_FROM_SUB_PATH
+        value: false
+      - key: GF_SECURITY_COOKIE_SECURE
+        value: true
+      - key: GF_SECURITY_COOKIE_SAMESITE
+        value: strict
+    buildCommand: docker build -f Dockerfile.grafana -t grafana-monitoring .
+    startCommand: grafana-server --config=/etc/grafana/grafana.ini
     autoDeploy: true
+
+  # AI Service
+  - type: web
+    name: ai-service
+    env: python
+    region: oregon
+    plan: starter
+    healthCheckPath: /health
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    rootDir: grafana-stack/ai-service
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PROMETHEUS_URL
+        value: https://awtospx.com/prometheus
+      - key: GRAFANA_URL
+        value: https://awtospx.com
+    autoDeploy: true
+
+  # Prometheus Service
+  - type: web
+    name: prometheus
+    env: docker
+    region: oregon
+    plan: starter
+    healthCheckPath: /-/healthy
+    dockerfilePath: ./grafana-stack/Dockerfile.prometheus
+    dockerContext: ./grafana-stack
+    buildCommand: docker build -f Dockerfile.prometheus -t prometheus .
+    startCommand: prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+    autoDeploy: true
+
+databases:
+  # PostgreSQL for Grafana (optional, for persistent data)
+  - name: grafana-db
+    databaseName: grafana
+    user: grafana
+    plan: starter
+    region: oregon
