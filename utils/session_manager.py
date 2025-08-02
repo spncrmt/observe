@@ -66,4 +66,15 @@ class SessionManager:
     def get_monitoring_state(self) -> tuple[bool, int]:
         """Get monitoring state."""
         session = self.load_session()
-        return session.get('monitoring_active', False), session.get('monitoring_interval', 60) 
+        return session.get('monitoring_active', False), session.get('monitoring_interval', 60)
+    
+    def save_selected_metrics(self, selected_metrics: list) -> None:
+        """Save selected metrics to persistent storage."""
+        session = self.load_session()
+        session['selected_metrics'] = selected_metrics
+        self.save_session(session)
+    
+    def get_selected_metrics(self) -> list:
+        """Get selected metrics from persistent storage."""
+        session = self.load_session()
+        return session.get('selected_metrics', ["cpu_usage", "memory_usage"]) 

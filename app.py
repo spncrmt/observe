@@ -249,8 +249,9 @@ def main():
         st.session_state.last_refresh = time.time()
     if "monitoring_interval" not in st.session_state:
         st.session_state.monitoring_interval = 60
+    # Restore selected metrics from persistent storage
     if "selected_metrics" not in st.session_state:
-        st.session_state.selected_metrics = ["cpu_usage", "memory_usage"]
+        st.session_state.selected_metrics = session_manager.get_selected_metrics()
     
     # Restore monitoring state from persistent storage
     persistent_active, persistent_interval = session_manager.get_monitoring_state()
@@ -338,9 +339,10 @@ def main():
         help="Select which metrics you want to monitor in real-time"
     )
     
-    # Update selected metrics in session state
+    # Update selected metrics in session state and save persistently
     if selected_metrics != st.session_state.selected_metrics:
         st.session_state.selected_metrics = selected_metrics
+        session_manager.save_selected_metrics(selected_metrics)
     
     # Show metric descriptions
     if selected_metrics:
@@ -411,14 +413,22 @@ def main():
             st.session_state.last_refresh = time.time()
             st.rerun()
 
-    # Load data (real-time if monitoring, otherwise historical)
+    # Load data (prioritize real data when available)
     try:
         if st.session_state.monitoring_active:
+            # When monitoring is active, only use real data
             metrics_df, logs_df = get_live_metrics()
             data_source = "🔄 Live Data"
+            if metrics_df.empty:
+                st.info("Starting monitoring... collecting real data now.")
         else:
-            metrics_df, logs_df = load_data()
-            data_source = "📊 Historical Data"
+            # When not monitoring, try real data first, then fall back to synthetic
+            metrics_df, logs_df = get_live_metrics()
+            if not metrics_df.empty:
+                data_source = "📊 Real Data (from previous monitoring)"
+            else:
+                metrics_df, logs_df = load_data()
+                data_source = "📊 Historical Data"
 
         # Display data source indicator
         st.info(f"{data_source} - {'Monitoring Active' if st.session_state.monitoring_active else 'Historical View'}")
@@ -430,10 +440,6 @@ def main():
     # Detect anomalies for available metrics only
     if not metrics_df.empty:
         analyzed_metrics = {}
-        # Debug: show what metrics are available and selected
-        st.sidebar.info(f"Available columns: {list(metrics_df.columns)}")
-        st.sidebar.info(f"Selected metrics: {st.session_state.selected_metrics}")
-        
         for metric in st.session_state.selected_metrics:
             if metric in metrics_df.columns:
                 try:
@@ -442,7 +448,6 @@ def main():
                     st.warning(f"Could not analyze {metric}: {e}")
                     analyzed_metrics[metric] = metrics_df
             else:
-                st.warning(f"Metric '{metric}' not found in data columns: {list(metrics_df.columns)}")
                 analyzed_metrics[metric] = metrics_df
     else:
         analyzed_metrics = {}
