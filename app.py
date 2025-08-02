@@ -611,8 +611,8 @@ def main():
             st.write(ai_result.get("reasoning", "No reasoning available."))
 
             # Root cause analysis
-            if not metrics_analyzed.empty:
-                rca = root_cause_analysis(metrics_analyzed, logs_df)
+            if not cpu_analyzed.empty:
+                rca = root_cause_analysis(cpu_analyzed, logs_df)
                 st.subheader("Root Cause Analysis")
                 for entry in rca["analysis"][:5]:
                     st.markdown(
