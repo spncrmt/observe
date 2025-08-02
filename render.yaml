@@ -23,8 +23,6 @@ services:
         value: true
       - key: GF_SECURITY_COOKIE_SAMESITE
         value: strict
-    buildCommand: docker build -f Dockerfile.grafana -t grafana-monitoring .
-    startCommand: grafana-server --config=/etc/grafana/grafana.ini
     autoDeploy: true
 
   # AI Service
@@ -57,8 +55,6 @@ services:
     healthCheckPath: /-/healthy
     dockerfilePath: ./grafana-stack/Dockerfile.prometheus
     dockerContext: ./grafana-stack
-    buildCommand: docker build -f Dockerfile.prometheus -t prometheus .
-    startCommand: prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
     autoDeploy: true
 
 databases:
