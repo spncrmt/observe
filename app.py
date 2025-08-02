@@ -456,25 +456,26 @@ def main():
     st.subheader("📊 Live System Monitoring Dashboard")
     
     if not metrics_df.empty and st.session_state.selected_metrics:
-        # Create dynamic columns based on selected metrics
-        num_metrics = len(st.session_state.selected_metrics)
-        cols = st.columns(min(3, num_metrics))  # Max 3 columns
+        # Filter to only show selected metrics that are available in data
+        available_selected_metrics = [metric for metric in st.session_state.selected_metrics if metric in metrics_df.columns]
         
-
-        
-        # Display each selected metric
-        for i, metric in enumerate(st.session_state.selected_metrics):
-            col_idx = i % len(cols)
-            metric_info = metric_manager.get_metric_info(metric)
+        if available_selected_metrics:
+            # Create dynamic columns based on available selected metrics
+            num_metrics = len(available_selected_metrics)
+            cols = st.columns(min(3, num_metrics))  # Max 3 columns
             
-            with cols[col_idx]:
-                if metric_info:
-                    st.markdown(f"### {metric_info['description']}")
-                else:
-                    st.markdown(f"### {metric.replace('_', ' ').title()}")
+            # Display each available selected metric
+            for i, metric in enumerate(available_selected_metrics):
+                col_idx = i % len(cols)
+                metric_info = metric_manager.get_metric_info(metric)
                 
-                # Create chart for this metric
-                if metric in metrics_df.columns:
+                with cols[col_idx]:
+                    if metric_info:
+                        st.markdown(f"### {metric_info['description']}")
+                    else:
+                        st.markdown(f"### {metric.replace('_', ' ').title()}")
+                    
+                    # Create chart for this metric
                     if st.session_state.monitoring_active:
                         fig = create_real_time_chart(analyzed_metrics[metric], metric)
                     else:
@@ -514,8 +515,10 @@ def main():
                             st.markdown("**Recent logs:**")
                             for _, log in relevant_logs.iterrows():
                                 st.caption(f"{log['timestamp']}: {log['message']}")
-                else:
-                    st.warning(f"Metric '{metric}' not available in data")
+        else:
+            st.warning("No selected metrics are available in the current data. Please check your metric selection.")
+    else:
+        st.warning("No metrics data available. Start monitoring to see live data.")
         
         # System Status Summary
         st.markdown("---")
@@ -524,27 +527,27 @@ def main():
         if st.session_state.monitoring_active and not metrics_df.empty:
             latest = metrics_df.iloc[-1]
             
-            # Create dynamic metrics grid based on selected metrics
-            num_selected = len(st.session_state.selected_metrics)
-            if num_selected > 0:
-                # Create columns for selected metrics + monitoring info
-                cols = st.columns(min(4, num_selected + 1))
+            # Filter to only show selected metrics that are available in data
+            available_selected_metrics = [metric for metric in st.session_state.selected_metrics if metric in metrics_df.columns]
+            
+            if available_selected_metrics:
+                # Create columns for available selected metrics + monitoring info
+                cols = st.columns(min(4, len(available_selected_metrics) + 1))
                 
-                # Display each selected metric
-                for i, metric in enumerate(st.session_state.selected_metrics):
+                # Display each available selected metric
+                for i, metric in enumerate(available_selected_metrics):
                     if i < len(cols) - 1:  # Leave last column for monitoring info
                         metric_info = metric_manager.get_metric_info(metric)
-                        if metric in metrics_df.columns:
-                            current_value = latest[metric]
-                            avg_value = metrics_df[metric].mean()
-                            delta_value = current_value - avg_value
-                            
-                            with cols[i]:
-                                st.metric(
-                                    metric_info['description'] if metric_info else metric.replace('_', ' ').title(),
-                                    f"{current_value:.2f}{metric_info['unit'] if metric_info else ''}",
-                                    delta=f"{delta_value:.2f}{metric_info['unit'] if metric_info else ''}"
-                                )
+                        current_value = latest[metric]
+                        avg_value = metrics_df[metric].mean()
+                        delta_value = current_value - avg_value
+                        
+                        with cols[i]:
+                            st.metric(
+                                metric_info['description'] if metric_info else metric.replace('_', ' ').title(),
+                                f"{current_value:.2f}{metric_info['unit'] if metric_info else ''}",
+                                delta=f"{delta_value:.2f}{metric_info['unit'] if metric_info else ''}"
+                            )
                 
                 # Monitoring info in last column
                 with cols[-1]:
@@ -558,12 +561,14 @@ def main():
         if not metrics_df.empty and st.session_state.selected_metrics:
             st.markdown("### 🔍 Anomaly Detection")
             
-            # Create columns for selected metrics
-            num_selected = len(st.session_state.selected_metrics)
-            if num_selected > 0:
-                cols = st.columns(min(3, num_selected))
+            # Filter to only show selected metrics that are available in data
+            available_selected_metrics = [metric for metric in st.session_state.selected_metrics if metric in metrics_df.columns]
+            
+            if available_selected_metrics:
+                # Create columns for available selected metrics
+                cols = st.columns(min(3, len(available_selected_metrics)))
                 
-                for i, metric in enumerate(st.session_state.selected_metrics):
+                for i, metric in enumerate(available_selected_metrics):
                     if i < len(cols):
                         metric_info = metric_manager.get_metric_info(metric)
                         if metric in analyzed_metrics and 'anomaly' in analyzed_metrics[metric].columns:
@@ -627,17 +632,20 @@ def main():
             st.write(ai_result.get("reasoning", "No reasoning available."))
 
             # Root cause analysis
-            if not cpu_analyzed.empty:
-                rca = root_cause_analysis(cpu_analyzed, logs_df)
-                st.subheader("Root Cause Analysis")
-                for entry in rca["analysis"][:5]:
-                    st.markdown(
-                        f"**Anomaly at {entry['timestamp']}**\n\n"
-                        f"Metric value: {entry['metric_value']:.2f}\n\n"
-                        f"Logs analyzed: {entry['logs_analyzed']}\n\n"
-                        f"Top error messages: {entry['error_counts']}"
-                    )
-                st.caption(rca["description"])
+            if not metrics_df.empty and st.session_state.selected_metrics:
+                # Use the first available metric for root cause analysis
+                available_metrics = [metric for metric in st.session_state.selected_metrics if metric in metrics_df.columns]
+                if available_metrics and available_metrics[0] in analyzed_metrics:
+                    rca = root_cause_analysis(analyzed_metrics[available_metrics[0]], logs_df)
+                    st.subheader("Root Cause Analysis")
+                    for entry in rca["analysis"][:5]:
+                        st.markdown(
+                            f"**Anomaly at {entry['timestamp']}**\n\n"
+                            f"Metric value: {entry['metric_value']:.2f}\n\n"
+                            f"Logs analyzed: {entry['logs_analyzed']}\n\n"
+                            f"Top error messages: {entry['error_counts']}"
+                        )
+                    st.caption(rca["description"])
 
             # Feedback interface
             st.subheader("Was this helpful?")
