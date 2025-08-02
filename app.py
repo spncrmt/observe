@@ -54,6 +54,7 @@ st.set_page_config(
 from utils.auth import UserAuth
 from utils.ai_assistant import detect_anomalies, root_cause_analysis, ai_answer
 from utils.session_manager import SessionManager
+from utils.metric_collectors import MetricCollectorManager
 from scripts.generate_data import generate_data
 
 
@@ -103,7 +104,7 @@ def save_feedback(feedback_entry: Dict[str, Any]) -> None:
         json.dump(data, f, indent=2, default=str)
 
 
-def start_monitoring(interval: int = 60):
+def start_monitoring(interval: int = 60, selected_metrics: list = None):
     """Start the system monitoring in background."""
     try:
         # Start the monitoring script in background
@@ -114,6 +115,10 @@ def start_monitoring(interval: int = 60):
             "--interval", 
             str(interval)
         ]
+        
+        # Add selected metrics if provided
+        if selected_metrics:
+            cmd.extend(["--metrics"] + selected_metrics)
         
         # Use subprocess.Popen to run in background
         process = subprocess.Popen(
@@ -244,6 +249,8 @@ def main():
         st.session_state.last_refresh = time.time()
     if "monitoring_interval" not in st.session_state:
         st.session_state.monitoring_interval = 60
+    if "selected_metrics" not in st.session_state:
+        st.session_state.selected_metrics = ["cpu_usage", "memory_usage"]
     
     # Restore monitoring state from persistent storage
     persistent_active, persistent_interval = session_manager.get_monitoring_state()
@@ -319,6 +326,30 @@ def main():
     # Real-time Monitoring Controls
     st.sidebar.header("🖥️ Real-time Monitoring")
     
+    # Metric selection
+    metric_manager = MetricCollectorManager()
+    available_metrics = metric_manager.get_available_metrics()
+    
+    st.sidebar.subheader("📊 Select Metrics to Monitor")
+    selected_metrics = st.sidebar.multiselect(
+        "Choose metrics to display:",
+        options=available_metrics,
+        default=st.session_state.selected_metrics,
+        help="Select which metrics you want to monitor in real-time"
+    )
+    
+    # Update selected metrics in session state
+    if selected_metrics != st.session_state.selected_metrics:
+        st.session_state.selected_metrics = selected_metrics
+    
+    # Show metric descriptions
+    if selected_metrics:
+        st.sidebar.markdown("**Selected Metrics:**")
+        for metric in selected_metrics:
+            info = metric_manager.get_metric_info(metric)
+            if info:
+                st.sidebar.caption(f"• {info['description']} ({info['unit']})")
+    
     # Monitoring status
     if st.session_state.monitoring_active:
         st.sidebar.success("✅ Monitoring Active")
@@ -336,7 +367,7 @@ def main():
         interval = st.sidebar.slider("Collection Interval (seconds)", 30, 300, 60)
         
         if st.sidebar.button("▶️ Start Monitoring"):
-            process = start_monitoring(interval)
+            process = start_monitoring(interval, selected_metrics)
             if process:
                 st.session_state.monitoring_active = True
                 st.session_state.monitoring_process = process
@@ -404,105 +435,76 @@ def main():
     else:
         cpu_analyzed = memory_analyzed = latency_analyzed = metrics_df
 
-    # Comprehensive Multi-Metric Dashboard
+    # Dynamic Multi-Metric Dashboard
     st.subheader("📊 Live System Monitoring Dashboard")
     
-    if not metrics_df.empty:
-        # Create three columns for the three main metrics
-        col1, col2, col3 = st.columns(3)
+    if not metrics_df.empty and st.session_state.selected_metrics:
+        # Create dynamic columns based on selected metrics
+        num_metrics = len(st.session_state.selected_metrics)
+        cols = st.columns(min(3, num_metrics))  # Max 3 columns
         
-        with col1:
-            st.markdown("### 🖥️ CPU Usage")
-            if st.session_state.monitoring_active:
-                fig_cpu = create_real_time_chart(cpu_analyzed, "cpu_usage")
+        # Analyze each selected metric
+        analyzed_metrics = {}
+        for metric in st.session_state.selected_metrics:
+            if metric in metrics_df.columns:
+                analyzed_metrics[metric] = detect_anomalies(metrics_df, column=metric, window=60, z_threshold=3.5)
             else:
-                fig_cpu = px.line(
-                    cpu_analyzed,
-                    x="timestamp",
-                    y="cpu_usage",
-                    title="CPU Usage over Time",
-                )
-                if "anomaly" in cpu_analyzed.columns:
-                    anomalies = cpu_analyzed[cpu_analyzed["anomaly"]]
-                    if not anomalies.empty:
-                        fig_cpu.add_scatter(
-                            x=anomalies["timestamp"],
-                            y=anomalies["cpu_usage"],
-                            mode="markers",
-                            marker=dict(color="red", size=6),
-                            name="Anomaly",
-                        )
-            st.plotly_chart(fig_cpu, use_container_width=True, height=300)
-            
-            # CPU-specific logs
-            if not logs_df.empty:
-                cpu_logs = logs_df[logs_df['message'].str.contains('cpu|CPU', case=False, na=False)].tail(5)
-                if not cpu_logs.empty:
-                    st.markdown("**Recent CPU-related logs:**")
-                    for _, log in cpu_logs.iterrows():
-                        st.caption(f"{log['timestamp']}: {log['message']}")
+                analyzed_metrics[metric] = metrics_df
         
-        with col2:
-            st.markdown("### 💾 Memory Usage")
-            if st.session_state.monitoring_active:
-                fig_memory = create_real_time_chart(memory_analyzed, "memory_usage")
-            else:
-                fig_memory = px.line(
-                    memory_analyzed,
-                    x="timestamp",
-                    y="memory_usage",
-                    title="Memory Usage over Time",
-                )
-                if "anomaly" in memory_analyzed.columns:
-                    anomalies = memory_analyzed[memory_analyzed["anomaly"]]
-                    if not anomalies.empty:
-                        fig_memory.add_scatter(
-                            x=anomalies["timestamp"],
-                            y=anomalies["memory_usage"],
-                            mode="markers",
-                            marker=dict(color="red", size=6),
-                            name="Anomaly",
-                        )
-            st.plotly_chart(fig_memory, use_container_width=True, height=300)
+        # Display each selected metric
+        for i, metric in enumerate(st.session_state.selected_metrics):
+            col_idx = i % len(cols)
+            metric_info = metric_manager.get_metric_info(metric)
             
-            # Memory-specific logs
-            if not logs_df.empty:
-                memory_logs = logs_df[logs_df['message'].str.contains('memory|Memory|RAM', case=False, na=False)].tail(5)
-                if not memory_logs.empty:
-                    st.markdown("**Recent Memory-related logs:**")
-                    for _, log in memory_logs.iterrows():
-                        st.caption(f"{log['timestamp']}: {log['message']}")
-        
-        with col3:
-            st.markdown("### ⚡ Latency")
-            if st.session_state.monitoring_active:
-                fig_latency = create_real_time_chart(latency_analyzed, "latency_ms")
-            else:
-                fig_latency = px.line(
-                    latency_analyzed,
-                    x="timestamp",
-                    y="latency_ms",
-                    title="Latency over Time",
-                )
-                if "anomaly" in latency_analyzed.columns:
-                    anomalies = latency_analyzed[latency_analyzed["anomaly"]]
-                    if not anomalies.empty:
-                        fig_latency.add_scatter(
-                            x=anomalies["timestamp"],
-                            y=anomalies["latency_ms"],
-                            mode="markers",
-                            marker=dict(color="red", size=6),
-                            name="Anomaly",
+            with cols[col_idx]:
+                if metric_info:
+                    st.markdown(f"### {metric_info['description']}")
+                else:
+                    st.markdown(f"### {metric.replace('_', ' ').title()}")
+                
+                # Create chart for this metric
+                if metric in metrics_df.columns:
+                    if st.session_state.monitoring_active:
+                        fig = create_real_time_chart(analyzed_metrics[metric], metric)
+                    else:
+                        fig = px.line(
+                            analyzed_metrics[metric],
+                            x="timestamp",
+                            y=metric,
+                            title=f"{metric.replace('_', ' ').title()} over Time",
                         )
-            st.plotly_chart(fig_latency, use_container_width=True, height=300)
-            
-            # Latency-specific logs
-            if not logs_df.empty:
-                latency_logs = logs_df[logs_df['message'].str.contains('latency|Latency|response|Response', case=False, na=False)].tail(5)
-                if not latency_logs.empty:
-                    st.markdown("**Recent Latency-related logs:**")
-                    for _, log in latency_logs.iterrows():
-                        st.caption(f"{log['timestamp']}: {log['message']}")
+                        if "anomaly" in analyzed_metrics[metric].columns:
+                            anomalies = analyzed_metrics[metric][analyzed_metrics[metric]["anomaly"]]
+                            if not anomalies.empty:
+                                fig.add_scatter(
+                                    x=anomalies["timestamp"],
+                                    y=anomalies[metric],
+                                    mode="markers",
+                                    marker=dict(color="red", size=6),
+                                    name="Anomaly",
+                                )
+                    
+                    st.plotly_chart(fig, use_container_width=True, height=300)
+                    
+                    # Show current value
+                    if not metrics_df.empty:
+                        latest_value = metrics_df[metric].iloc[-1] if metric in metrics_df.columns else 0
+                        st.metric(
+                            f"Current {metric_info['description'] if metric_info else metric.replace('_', ' ').title()}",
+                            f"{latest_value:.2f}{metric_info['unit'] if metric_info else ''}"
+                        )
+                    
+                    # Show relevant logs
+                    if not logs_df.empty:
+                        # Find logs related to this metric
+                        metric_keywords = metric.replace('_', ' ').lower()
+                        relevant_logs = logs_df[logs_df['message'].str.contains(metric_keywords, case=False, na=False)].tail(3)
+                        if not relevant_logs.empty:
+                            st.markdown("**Recent logs:**")
+                            for _, log in relevant_logs.iterrows():
+                                st.caption(f"{log['timestamp']}: {log['message']}")
+                else:
+                    st.warning(f"Metric '{metric}' not available in data")
         
         # System Status Summary
         st.markdown("---")
@@ -511,56 +513,59 @@ def main():
         if st.session_state.monitoring_active and not metrics_df.empty:
             latest = metrics_df.iloc[-1]
             
-            # Create metrics in a grid
-            status_col1, status_col2, status_col3, status_col4 = st.columns(4)
-            
-            with status_col1:
-                st.metric(
-                    "CPU Usage", 
-                    f"{latest['cpu_usage']:.1f}%",
-                    delta=f"{latest['cpu_usage'] - metrics_df['cpu_usage'].mean():.1f}%"
-                )
-            
-            with status_col2:
-                st.metric(
-                    "Memory Usage", 
-                    f"{latest['memory_usage']:.1f}%",
-                    delta=f"{latest['memory_usage'] - metrics_df['memory_usage'].mean():.1f}%"
-                )
-            
-            with status_col3:
-                if 'latency_ms' in latest:
+            # Create dynamic metrics grid based on selected metrics
+            num_selected = len(st.session_state.selected_metrics)
+            if num_selected > 0:
+                # Create columns for selected metrics + monitoring info
+                cols = st.columns(min(4, num_selected + 1))
+                
+                # Display each selected metric
+                for i, metric in enumerate(st.session_state.selected_metrics):
+                    if i < len(cols) - 1:  # Leave last column for monitoring info
+                        metric_info = metric_manager.get_metric_info(metric)
+                        if metric in metrics_df.columns:
+                            current_value = latest[metric]
+                            avg_value = metrics_df[metric].mean()
+                            delta_value = current_value - avg_value
+                            
+                            with cols[i]:
+                                st.metric(
+                                    metric_info['description'] if metric_info else metric.replace('_', ' ').title(),
+                                    f"{current_value:.2f}{metric_info['unit'] if metric_info else ''}",
+                                    delta=f"{delta_value:.2f}{metric_info['unit'] if metric_info else ''}"
+                                )
+                
+                # Monitoring info in last column
+                with cols[-1]:
                     st.metric(
-                        "Latency", 
-                        f"{latest['latency_ms']:.1f}ms",
-                        delta=f"{latest['latency_ms'] - metrics_df['latency_ms'].mean():.1f}ms"
+                        "Monitoring Time", 
+                        f"{len(metrics_df)} samples",
+                        delta=f"Every {st.session_state.monitoring_interval}s"
                     )
-                else:
-                    st.metric("Data Points", len(metrics_df))
-            
-            with status_col4:
-                st.metric(
-                    "Monitoring Time", 
-                    f"{len(metrics_df)} samples",
-                    delta=f"Every {st.session_state.monitoring_interval}s"
-                )
         
         # Anomaly Summary
-        if not metrics_df.empty:
+        if not metrics_df.empty and st.session_state.selected_metrics:
             st.markdown("### 🔍 Anomaly Detection")
-            anomaly_col1, anomaly_col2, anomaly_col3 = st.columns(3)
             
-            with anomaly_col1:
-                cpu_anomalies = cpu_analyzed[cpu_analyzed.get('anomaly', False)].shape[0] if 'anomaly' in cpu_analyzed.columns else 0
-                st.metric("CPU Anomalies", cpu_anomalies, delta="Last 24h")
-            
-            with anomaly_col2:
-                memory_anomalies = memory_analyzed[memory_analyzed.get('anomaly', False)].shape[0] if 'anomaly' in memory_analyzed.columns else 0
-                st.metric("Memory Anomalies", memory_anomalies, delta="Last 24h")
-            
-            with anomaly_col3:
-                latency_anomalies = latency_analyzed[latency_analyzed.get('anomaly', False)].shape[0] if 'anomaly' in latency_analyzed.columns else 0
-                st.metric("Latency Anomalies", latency_anomalies, delta="Last 24h")
+            # Create columns for selected metrics
+            num_selected = len(st.session_state.selected_metrics)
+            if num_selected > 0:
+                cols = st.columns(min(3, num_selected))
+                
+                for i, metric in enumerate(st.session_state.selected_metrics):
+                    if i < len(cols):
+                        metric_info = metric_manager.get_metric_info(metric)
+                        if metric in analyzed_metrics and 'anomaly' in analyzed_metrics[metric].columns:
+                            anomalies_count = analyzed_metrics[metric][analyzed_metrics[metric]['anomaly']].shape[0]
+                        else:
+                            anomalies_count = 0
+                        
+                        with cols[i]:
+                            st.metric(
+                                f"{metric_info['description'] if metric_info else metric.replace('_', ' ').title()} Anomalies",
+                                anomalies_count,
+                                delta="Last 24h"
+                            )
     
     else:
         st.warning("No metrics data available. Start monitoring to see live data.")

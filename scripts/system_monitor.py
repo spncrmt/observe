@@ -21,6 +21,11 @@ from datetime import datetime
 from typing import Dict, Any
 import platform
 import os
+import sys
+
+# Add the parent directory to the path to import utils
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.metric_collectors import MetricCollectorManager
 
 # Configure logging
 logging.basicConfig(
@@ -33,83 +38,39 @@ logger = logging.getLogger(__name__)
 class SystemMonitor:
     """Collects system metrics from the current machine."""
     
-    def __init__(self, target_url: str = None):
+    def __init__(self, target_url: str = None, selected_metrics: list = None):
         self.target_url = target_url
         self.system = platform.system()
+        self.metric_manager = MetricCollectorManager()
+        self.selected_metrics = selected_metrics or ["cpu_usage", "memory_usage"]
         logger.info(f"Initializing system monitor for {self.system}")
+        logger.info(f"Selected metrics: {self.selected_metrics}")
     
     def collect_metrics(self) -> Dict[str, Any]:
-        """Collect current system metrics."""
+        """Collect current system metrics using modular collectors."""
         try:
-            # CPU metrics
-            cpu_percent = psutil.cpu_percent(interval=1)
-            cpu_count = psutil.cpu_count()
-            cpu_freq = psutil.cpu_freq()
+            # Collect metrics using the metric manager
+            metric_data = self.metric_manager.collect_metrics(self.selected_metrics)
             
-            # Memory metrics
-            memory = psutil.virtual_memory()
-            memory_percent = memory.percent
-            memory_used = memory.used / (1024**3)  # GB
-            memory_total = memory.total / (1024**3)  # GB
-            
-            # Disk metrics
-            disk = psutil.disk_usage('/')
-            disk_percent = (disk.used / disk.total) * 100
-            
-            # Network metrics
-            network = psutil.net_io_counters()
-            network_bytes_sent = network.bytes_sent
-            network_bytes_recv = network.bytes_recv
-            
-            # System load (Unix-like systems)
-            load_avg = None
-            if hasattr(psutil, 'getloadavg'):
-                try:
-                    load_avg = psutil.getloadavg()
-                except:
-                    pass
-            
-            # Process count
-            process_count = len(psutil.pids())
-            
-            # Temperature (if available)
-            temperature = None
-            try:
-                if self.system == "Darwin":  # macOS
-                    # Try to get temperature using system_profiler
-                    import subprocess
-                    result = subprocess.run(['system_profiler', 'SPThermalDataType'], 
-                                         capture_output=True, text=True)
-                    if 'Temperature' in result.stdout:
-                        # Extract temperature from output
-                        temp_line = [line for line in result.stdout.split('\n') 
-                                   if 'Temperature' in line]
-                        if temp_line:
-                            temperature = temp_line[0].split(':')[-1].strip()
-            except:
-                pass
-            
+            # Convert to the expected format
             metrics = {
                 "timestamp": datetime.now().isoformat(),
                 "hostname": platform.node(),
                 "system": self.system,
-                "cpu_usage": cpu_percent,
-                "cpu_count": cpu_count,
-                "cpu_freq_mhz": cpu_freq.current if cpu_freq else None,
-                "memory_usage": memory_percent,
-                "memory_used_gb": round(memory_used, 2),
-                "memory_total_gb": round(memory_total, 2),
-                "disk_usage": disk_percent,
-                "disk_used_gb": round(disk.used / (1024**3), 2),
-                "disk_total_gb": round(disk.total / (1024**3), 2),
-                "network_bytes_sent": network_bytes_sent,
-                "network_bytes_recv": network_bytes_recv,
-                "process_count": process_count,
-                "load_average": load_avg,
-                "temperature": temperature
             }
             
-            logger.info(f"Collected metrics: CPU {cpu_percent}%, Memory {memory_percent}%, Disk {disk_percent}%")
+            # Add collected metrics
+            for metric_name, data in metric_data.items():
+                metrics[metric_name] = data.value
+            
+            # Add some additional system info
+            metrics["cpu_count"] = psutil.cpu_count()
+            metrics["memory_total_gb"] = round(psutil.virtual_memory().total / (1024**3), 2)
+            
+            # Log collected metrics
+            metric_values = [f"{data.description} {data.value}{data.unit}" for data in metric_data.values()]
+            logger.info(f"Collected metrics: {', '.join(metric_values)}")
+            
             return metrics
             
         except Exception as e:
@@ -207,13 +168,18 @@ class SystemMonitor:
             # Check if file exists and has headers
             file_exists = os.path.exists(metrics_file) and os.path.getsize(metrics_file) > 0
             
-            # Convert to CSV format
-            csv_line = f"{metrics['timestamp']},{metrics['cpu_usage']},{metrics['memory_usage']},{metrics.get('latency_ms', 0)}\n"
+            # Build CSV line dynamically based on available metrics
+            csv_fields = ["timestamp"] + self.selected_metrics
+            csv_values = [metrics.get("timestamp", "")]
+            for metric in self.selected_metrics:
+                csv_values.append(str(metrics.get(metric, 0)))
+            
+            csv_line = ",".join(csv_values) + "\n"
             
             with open(metrics_file, "a") as f:
                 # Write headers if file is new
                 if not file_exists:
-                    f.write("timestamp,cpu_usage,memory_usage,latency_ms\n")
+                    f.write(",".join(csv_fields) + "\n")
                 f.write(csv_line)
             
             # Save logs
@@ -280,12 +246,14 @@ def main():
     parser.add_argument("--interval", type=int, default=60, help="Collection interval in seconds")
     parser.add_argument("--duration", type=int, help="Duration to run in seconds")
     parser.add_argument("--local-only", action="store_true", help="Only save locally, don't send to dashboard")
+    parser.add_argument("--metrics", nargs="+", default=["cpu_usage", "memory_usage"], 
+                       help="Metrics to collect (space-separated list)")
     
     args = parser.parse_args()
     
-    # Initialize monitor
+    # Initialize monitor with selected metrics
     target_url = None if args.local_only else args.target
-    monitor = SystemMonitor(target_url)
+    monitor = SystemMonitor(target_url, selected_metrics=args.metrics)
     
     # Run monitoring
     monitor.run_monitoring(args.interval, args.duration)
