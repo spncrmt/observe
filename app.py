@@ -427,13 +427,20 @@ def main():
         metrics_df, logs_df = pd.DataFrame(), pd.DataFrame()
         st.info("Using fallback data")
 
-    # Detect anomalies for all metrics
+    # Detect anomalies for available metrics only
     if not metrics_df.empty:
-        cpu_analyzed = detect_anomalies(metrics_df, column="cpu_usage", window=60, z_threshold=3.5)
-        memory_analyzed = detect_anomalies(metrics_df, column="memory_usage", window=60, z_threshold=3.5)
-        latency_analyzed = detect_anomalies(metrics_df, column="latency_ms", window=60, z_threshold=3.5)
+        analyzed_metrics = {}
+        for metric in st.session_state.selected_metrics:
+            if metric in metrics_df.columns:
+                try:
+                    analyzed_metrics[metric] = detect_anomalies(metrics_df, column=metric, window=60, z_threshold=3.5)
+                except Exception as e:
+                    st.warning(f"Could not analyze {metric}: {e}")
+                    analyzed_metrics[metric] = metrics_df
+            else:
+                analyzed_metrics[metric] = metrics_df
     else:
-        cpu_analyzed = memory_analyzed = latency_analyzed = metrics_df
+        analyzed_metrics = {}
 
     # Dynamic Multi-Metric Dashboard
     st.subheader("📊 Live System Monitoring Dashboard")
@@ -443,13 +450,7 @@ def main():
         num_metrics = len(st.session_state.selected_metrics)
         cols = st.columns(min(3, num_metrics))  # Max 3 columns
         
-        # Analyze each selected metric
-        analyzed_metrics = {}
-        for metric in st.session_state.selected_metrics:
-            if metric in metrics_df.columns:
-                analyzed_metrics[metric] = detect_anomalies(metrics_df, column=metric, window=60, z_threshold=3.5)
-            else:
-                analyzed_metrics[metric] = metrics_df
+
         
         # Display each selected metric
         for i, metric in enumerate(st.session_state.selected_metrics):
