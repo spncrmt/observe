@@ -31,7 +31,7 @@ services:
     env: python
     region: oregon
     plan: starter
-    healthCheckPath: /health
+    healthCheckPath: /
     buildCommand: pip install --upgrade pip setuptools wheel build && pip install -r requirements.txt
     startCommand: python app.py
     rootDir: grafana-stack/ai-service

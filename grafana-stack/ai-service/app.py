@@ -68,6 +68,28 @@ SYSTEM_HEALTH_SCORE = Gauge('ai_service_system_health_score', 'System health sco
 #     use_openai=True
 # )
 
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint with service information"""
+    REQUEST_COUNT.inc()
+    return jsonify({
+        "service": "AI Observability Platform",
+        "version": "1.0.0",
+        "status": "running",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "health": "/health",
+            "metrics": "/metrics",
+            "insights": "/api/insights",
+            "anomalies": "/api/anomalies",
+            "capabilities": "/api/capabilities",
+            "ai_query": "/ai/api/query",
+            "ai_analyze": "/ai/api/analyze",
+            "ai_context": "/ai/api/context"
+        },
+        "description": "AI-powered observability service for Grafana monitoring"
+    })
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
