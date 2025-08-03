@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grafana with AI Assistant</title>
+    <style>
+        .ai-nav-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .ai-nav-button:hover {
+            background: #0052a3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 102, 204, 0.4);
+        }
+        
+        .ai-chat-window {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: #1e1e1e;
+            border-left: 1px solid #404040;
+            box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .ai-chat-window.open {
+            right: 0;
+        }
+        
+        .ai-chat-header {
+            background: #2d2d2d;
+            padding: 16px 20px;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .ai-chat-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .ai-chat-close {
+            background: none;
+            border: none;
+            color: #b0b0b0;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            font-size: 18px;
+        }
+        
+        .ai-chat-close:hover {
+            background: #404040;
+            color: #ffffff;
+        }
+        
+        .ai-chat-iframe {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+        
+        .ai-button-text {
+            display: none;
+        }
+        
+        @media (min-width: 768px) {
+            .ai-button-text {
+                display: inline;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- AI Assistant Navigation Button -->
+    <button class="ai-nav-button" onclick="toggleAIChat()">
+        🤖 <span class="ai-button-text">AI Assistant</span>
+    </button>
+    
+    <!-- AI Chat Window -->
+    <div class="ai-chat-window" id="aiChatWindow">
+        <div class="ai-chat-header">
+            <div class="ai-chat-title">
+                🤖 AI Observability Assistant
+            </div>
+            <button class="ai-chat-close" onclick="toggleAIChat()">
+                ✕
+            </button>
+        </div>
+        <iframe 
+            src="https://ai-service.onrender.com/chat" 
+            class="ai-chat-iframe"
+            title="AI Assistant Chat"
+        ></iframe>
+    </div>
+    
+    <script>
+        function toggleAIChat() {
+            const chatWindow = document.getElementById('aiChatWindow');
+            chatWindow.classList.toggle('open');
+        }
+        
+        // Close chat when clicking outside
+        document.addEventListener('click', function(event) {
+            const chatWindow = document.getElementById('aiChatWindow');
+            const navButton = document.querySelector('.ai-nav-button');
+            
+            if (!chatWindow.contains(event.target) && 
+                !navButton.contains(event.target) && 
+                chatWindow.classList.contains('open')) {
+                chatWindow.classList.remove('open');
+            }
+        });
+        
+        // Keyboard shortcut (Ctrl/Cmd + K)
+        document.addEventListener('keydown', function(event) {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                event.preventDefault();
+                toggleAIChat();
+            }
+        });
+    </script>
+</body>
+</html> 
