@@ -741,5 +741,23 @@ def process_with_ai(prompt):
         app.logger.error(f"Error in AI processing: {e}")
         return "I'm having trouble processing your request right now. Please try again."
 
+@app.route('/chat', methods=['GET'])
+def chat_interface():
+    """Serve the AI chat interface"""
+    try:
+        with open('ai-chat-interface.html', 'r') as f:
+            html_content = f.read()
+        return html_content
+    except FileNotFoundError:
+        return """
+        <html>
+        <head><title>AI Chat Interface</title></head>
+        <body>
+            <h1>AI Chat Interface</h1>
+            <p>The chat interface file is not available. Please check the deployment.</p>
+        </body>
+        </html>
+        """
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5002, debug=True) 
