@@ -14,7 +14,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import logging
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 from prometheus_client import Counter, Gauge, Histogram, generate_latest, CONTENT_TYPE_LATEST
 import requests
@@ -68,26 +68,314 @@ SYSTEM_HEALTH_SCORE = Gauge('ai_service_system_health_score', 'System health sco
 #     use_openai=True
 # )
 
+# HTML template for the web interface
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Observability Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .chat-interface {
+            grid-column: 1 / -1;
+        }
+        
+        .chat-container {
+            height: 400px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            margin-bottom: 20px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .ai-message {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        
+        .input-group button {
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+        
+        .input-group button:hover {
+            background: #5a6fd8;
+        }
+        
+        .status {
+            text-align: center;
+            color: white;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        
+        .endpoints {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+        
+        .endpoints h3 {
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        .endpoint-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+        
+        .endpoint {
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Observability Platform</h1>
+            <p>Intelligent monitoring and analysis powered by AI</p>
+        </div>
+        
+        <div class="status">
+            <strong>Status:</strong> {{ status }} | <strong>Version:</strong> {{ version }} | <strong>Time:</strong> {{ timestamp }}
+        </div>
+        
+        <div class="main-content">
+            <div class="card">
+                <h2>📊 System Insights</h2>
+                <p>Get AI-powered insights about your system performance, anomalies, and recommendations.</p>
+                <button onclick="getInsights()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Get Insights</button>
+            </div>
+            
+            <div class="card">
+                <h2>🚨 Anomaly Detection</h2>
+                <p>Detect and analyze system anomalies with intelligent pattern recognition.</p>
+                <button onclick="getAnomalies()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Check Anomalies</button>
+            </div>
+        </div>
+        
+        <div class="card chat-interface">
+            <h2>💬 AI Assistant Chat</h2>
+            <div class="chat-container" id="chatContainer">
+                <div class="message ai-message">
+                    Hello! I'm your AI observability assistant. Ask me anything about your system monitoring, performance, or data analysis.
+                </div>
+            </div>
+            <div class="input-group">
+                <input type="text" id="userInput" placeholder="Ask about your system..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        
+        <div class="endpoints">
+            <h3>🔗 Available API Endpoints</h3>
+            <div class="endpoint-list">
+                {% for name, path in endpoints.items() %}
+                <div class="endpoint">{{ name }}: {{ path }}</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function getInsights() {
+            try {
+                const response = await fetch('/api/insights');
+                const data = await response.json();
+                addMessage('AI', JSON.stringify(data, null, 2));
+            } catch (error) {
+                addMessage('AI', 'Error getting insights: ' + error.message);
+            }
+        }
+        
+        async function getAnomalies() {
+            try {
+                const response = await fetch('/api/anomalies');
+                const data = await response.json();
+                addMessage('AI', JSON.stringify(data, null, 2));
+            } catch (error) {
+                addMessage('AI', 'Error getting anomalies: ' + error.message);
+            }
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (message) {
+                addMessage('User', message);
+                input.value = '';
+                
+                // Simulate AI response
+                setTimeout(() => {
+                    addMessage('AI', `I received your message: "${message}". This is a demo response. In a real implementation, this would connect to the AI service.`);
+                }, 1000);
+            }
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        function addMessage(sender, text) {
+            const container = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender.toLowerCase()}-message`;
+            messageDiv.textContent = text;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>
+"""
+
 @app.route('/', methods=['GET'])
 def root():
-    """Root endpoint with service information"""
+    """Root endpoint with web interface"""
     REQUEST_COUNT.inc()
-    return jsonify({
-        "service": "AI Observability Platform",
-        "version": "1.0.0",
+    
+    # Check if user wants JSON response
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify({
+            "service": "AI Observability Platform",
+            "version": "1.0.0",
+            "status": "running",
+            "timestamp": datetime.now().isoformat(),
+            "endpoints": {
+                "health": "/health",
+                "metrics": "/metrics",
+                "insights": "/api/insights",
+                "anomalies": "/api/anomalies",
+                "capabilities": "/api/capabilities",
+                "ai_query": "/ai/api/query",
+                "ai_analyze": "/ai/api/analyze",
+                "ai_context": "/ai/api/context"
+            },
+            "description": "AI-powered observability service for Grafana monitoring"
+        })
+    
+    # Return HTML interface
+    return render_template_string(HTML_TEMPLATE, {
         "status": "running",
-        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "endpoints": {
-            "health": "/health",
-            "metrics": "/metrics",
-            "insights": "/api/insights",
-            "anomalies": "/api/anomalies",
-            "capabilities": "/api/capabilities",
-            "ai_query": "/ai/api/query",
-            "ai_analyze": "/ai/api/analyze",
-            "ai_context": "/ai/api/context"
-        },
-        "description": "AI-powered observability service for Grafana monitoring"
+            "Health Check": "/health",
+            "Metrics": "/metrics",
+            "Insights": "/api/insights",
+            "Anomalies": "/api/anomalies",
+            "Capabilities": "/api/capabilities",
+            "AI Query": "/ai/api/query",
+            "AI Analyze": "/ai/api/analyze",
+            "AI Context": "/ai/api/context"
+        }
     })
 
 @app.route('/health', methods=['GET'])
