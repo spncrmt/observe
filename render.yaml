@@ -4,7 +4,7 @@ services:
     name: grafana-monitoring
     env: docker
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /
     dockerfilePath: ./grafana-stack/Dockerfile.grafana
     dockerContext: ./grafana-stack
@@ -30,7 +30,7 @@ services:
     name: ai-service
     env: python
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /
     buildCommand: pip install --upgrade pip setuptools wheel build && pip install -r requirements.txt
     startCommand: python app.py
@@ -51,7 +51,7 @@ services:
     name: prometheus
     env: docker
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /-/healthy
     dockerfilePath: ./grafana-stack/Dockerfile.prometheus
     dockerContext: ./grafana-stack
