@@ -32,7 +32,7 @@ services:
     region: oregon
     plan: starter
     healthCheckPath: /health
-    buildCommand: pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip setuptools wheel build && pip install -r requirements.txt
     startCommand: python app.py
     rootDir: grafana-stack/ai-service
     envVars:
