@@ -56,11 +56,3 @@ services:
     dockerfilePath: ./grafana-stack/Dockerfile.prometheus
     dockerContext: ./grafana-stack
     autoDeploy: true
-
-databases:
-  # PostgreSQL for Grafana (optional, for persistent data)
-  - name: grafana-db
-    databaseName: grafana
-    user: grafana
-    plan: starter
-    region: oregon

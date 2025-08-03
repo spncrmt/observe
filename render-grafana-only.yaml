@@ -1,0 +1,26 @@
+services:
+  # Grafana Service (Main Dashboard)
+  - type: web
+    name: grafana-monitoring
+    env: docker
+    region: oregon
+    plan: starter
+    healthCheckPath: /
+    dockerfilePath: ./grafana-stack/Dockerfile.grafana
+    dockerContext: ./grafana-stack
+    envVars:
+      - key: GF_SECURITY_ADMIN_USER
+        value: admin
+      - key: GF_SECURITY_ADMIN_PASSWORD
+        value: admin
+      - key: GF_USERS_ALLOW_SIGN_UP
+        value: false
+      - key: GF_SERVER_ROOT_URL
+        value: https://awtospx.com
+      - key: GF_SERVER_SERVE_FROM_SUB_PATH
+        value: false
+      - key: GF_SECURITY_COOKIE_SECURE
+        value: true
+      - key: GF_SECURITY_COOKIE_SAMESITE
+        value: strict
+    autoDeploy: true 
