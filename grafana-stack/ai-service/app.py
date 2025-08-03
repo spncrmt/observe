@@ -362,7 +362,7 @@ def root():
         })
     
     # Return HTML interface
-    return render_template_string(HTML_TEMPLATE, {
+    return render_template_string(HTML_TEMPLATE, **{
         "status": "running",
         "version": "1.0.0",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
