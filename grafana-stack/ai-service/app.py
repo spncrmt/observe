@@ -378,23 +378,37 @@ def root():
         }
     })
 
+@app.route('/test', methods=['GET'])
+def test():
+    """Simple test endpoint to verify the service is running"""
+    return jsonify({
+        "status": "running",
+        "message": "AI service is working!",
+        "timestamp": datetime.now().isoformat(),
+        "endpoints": {
+            "health": "/health",
+            "chat": "/chat",
+            "root": "/",
+            "test": "/test"
+        }
+    })
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    REQUEST_COUNT.inc()
-    return jsonify({
-        "status": "healthy",
-        "service": "ai-observability-platform",
-        "timestamp": datetime.now().isoformat(),
-        "features": [
-            "natural_language_processing",
-            "panel_creation",
-            "anomaly_detection",
-            "query_explanation",
-            "context_awareness",
-            "dashboard_integration"
-        ]
-    })
+    try:
+        return jsonify({
+            "status": "healthy",
+            "service": "AI Observability Platform",
+            "timestamp": datetime.now().isoformat(),
+            "version": "1.0.0"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 500
 
 @app.route('/metrics', methods=['GET'])
 def metrics():
@@ -760,4 +774,5 @@ def chat_interface():
         """
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5002, debug=True) 
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False) 
