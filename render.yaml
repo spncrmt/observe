@@ -22,7 +22,21 @@ services:
       - key: GF_SECURITY_COOKIE_SECURE
         value: true
       - key: GF_SECURITY_COOKIE_SAMESITE
-        value: strict
+        value: none
+      - key: GF_SECURITY_COOKIE_DOMAIN
+        value: awtospx.com
+      - key: GF_SECURITY_SESSION_LIFETIME
+        value: 86400
+      - key: GF_SECURITY_SESSION_REMEMBER_ME_DURATION
+        value: 604800
+      - key: GF_SECURITY_LOGIN_REMEMBER_DAYS
+        value: 30
+      - key: GF_SECURITY_DISABLE_GRAVATAR
+        value: true
+      - key: GF_SECURITY_STRICT_TRANSPORT_SECURITY
+        value: true
+      - key: GF_SECURITY_STRICT_TRANSPORT_SECURITY_MAX_AGE_SECONDS
+        value: 31536000
     autoDeploy: true
 
   # AI Service with OpenAI
