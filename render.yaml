@@ -25,19 +25,29 @@ services:
         value: strict
     autoDeploy: true
 
-  # AI Service
+  # AI Service with OpenAI
   - type: web
     name: ai-service
     env: python
     region: oregon
     plan: free
     healthCheckPath: /
-    buildCommand: pip install flask flask-cors
-    startCommand: python working_app.py
+    buildCommand: pip install -r requirements.txt
+    startCommand: python openai_app.py
     rootDir: grafana-stack/ai-service
     envVars:
       - key: FLASK_ENV
         value: production
+      - key: OPENAI_API_KEY
+        sync: false  # You'll need to set this in Render dashboard
+      - key: GRAFANA_URL
+        value: https://awtospx.com
+      - key: GRAFANA_USER
+        value: admin
+      - key: GRAFANA_PASSWORD
+        value: admin
+      - key: PROMETHEUS_URL
+        value: https://prometheus.onrender.com
     autoDeploy: true
 
   # Prometheus Service
