@@ -39,15 +39,15 @@ services:
         value: 31536000
     autoDeploy: true
 
-  # AI Service with OpenAI
+  # AI Service (Simplified)
   - type: web
     name: ai-service
     env: python
     region: oregon
     plan: free
     healthCheckPath: /
-    buildCommand: pip install -r requirements.txt
-    startCommand: python openai_app.py
+    buildCommand: pip install flask flask-cors requests
+    startCommand: python simple_openai_app.py
     rootDir: grafana-stack/ai-service
     envVars:
       - key: FLASK_ENV
