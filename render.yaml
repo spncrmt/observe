@@ -33,7 +33,7 @@ services:
     plan: free
     healthCheckPath: /
     buildCommand: pip install flask flask-cors
-    startCommand: python simple_app.py
+    startCommand: python working_app.py
     rootDir: grafana-stack/ai-service
     envVars:
       - key: FLASK_ENV
